@@ -21,8 +21,10 @@
 
 """GStreamer engine class"""
 
-from gi.repository import Gst
 from gi.repository import GObject
+GObject.threads_init()
+
+from gi.repository import Gst
 
 class Engine (GObject.GObject):
     '''GStreamer engine class. Encapsulates all the core gstreamer work in
