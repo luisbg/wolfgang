@@ -45,6 +45,7 @@ class Wolfgang():
         self.previous_button.set_sensitive(False)
 
         self._prepare_treeviews()
+        self._populate_library()
 
         self.window = self.builder.get_object("window1")
         self.window.set_icon_name("rhythmbox")
@@ -54,7 +55,6 @@ class Wolfgang():
 
         self.engine.connect("about_to_finish", self._onAboutToFinish)
         self.engine.connect("error", self._onError)
-        self.lucien.connect("discovered", self._new_media)
 
         # Slight hack to get the user's "Music" XDG directory:
         with open(path.expanduser("~/.config/user-dirs.dirs"), "r") as foo:
@@ -65,8 +65,6 @@ class Wolfgang():
                     music_folder = line.split('"')[1].replace("$HOME", home)
                     break
             foo.close()
-
-        self.lucien.collect(music_folder)
 
         GObject.timeout_add(500, self._updateSliderPosition)
 
@@ -128,7 +126,7 @@ class Wolfgang():
             self._populate_library (track[0], track[1], track[2], track[3], \
                 track[4])
 
-    def _populate_library(self, uri, artist, album, title, track):
+    def _populate_library(self):
         """
         for track in LIBRARY:
             if artist not already there: add it
@@ -146,27 +144,32 @@ class Wolfgang():
                 return
 
         # A list of tracks (and URIs) in a dic of albums in a dic of artists:
-        if not Gst.uri_is_valid(uri):
-            uri = Gst.filename_to_uri(uri)
-        if artist not in self.library:
-            self.library[artist] = {}
-            artist_iter = self.library_store.append(None, [artist])
-            if album not in self.library[artist]:
-                self.library[artist][album] = []
-                self.library_store.append(artist_iter, [album])
-        else:
-            if album not in self.library[artist]:
-                column = 0
-                artist_iter = self.library_store.get_iter_first()
-                while (artist != \
-                      self.library_store.get_value (artist_iter, column)) and \
-                      (artist != None):
-                    artist_iter = self.library_store.iter_next (artist_iter)
+        self.library = {}
+        for track in self.lucien.collect_db():
+            (idn, artist, album, title, track_num, uri) = (track[0], track[1], \
+                                                           track[2], track[3], \
+                                                           track[4], track[5])
+            if not Gst.uri_is_valid(uri):
+                uri = Gst.filename_to_uri(uri)
+            if artist not in self.library:
+                self.library[artist] = {}
+                artist_iter = self.library_store.append(None, [artist])
+                if album not in self.library[artist]:
+                    self.library[artist][album] = []
+                    self.library_store.append(artist_iter, [album])
+            else:
+                if album not in self.library[artist]:
+                    column = 0
+                    artist_iter = self.library_store.get_iter_first()
+                    while (artist != \
+                           self.library_store.get_value (artist_iter, column)) \
+                        and (artist != None):
+                        artist_iter = self.library_store.iter_next (artist_iter)
 
-                self.library[artist][album] = []
-                self.library_store.append(artist_iter, [album])
+                    self.library[artist][album] = []
+                    self.library_store.append(artist_iter, [album])
 
-        self.library[artist][album].append([title, uri, track])
+            self.library[artist][album].append([title, uri, track_num])
 
     """
     UI methods and callbacks
